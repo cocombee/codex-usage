@@ -7,10 +7,11 @@ Updated: 7 October 2026.
 
 Display a persistent usage bar in the Codex desktop experience, preferably above the message box. Preserve the reference's dark rounded container, pill shapes, muted labels, brighter numeric values, teal quota progress bars, and lightning indicator for speed.
 
-The user's latest direction includes both 5-hour and weekly usage. This supersedes the initial request to omit the 5-hour pill.
+The user's latest direction keeps 5-hour usage in the future plan only. It is omitted from the initial display, including any empty placeholder. This supersedes the earlier plan that included it in the initial bar.
 
-Order: 5h, week, lightning tok/s, Context.
-Both quota pills show percentage used and time until reset. Omit all reset icons and reset actions. Always spell Context in full. A percentage represents used quota, not remaining quota.
+Initial order: week, lightning tok/s, Context.
+Future order if 5-hour usage is added: week, 5h, lightning tok/s, Context.
+The weekly pill shows percentage used and time until reset; a future 5h pill would do the same. Omit all reset icons and reset actions. Always spell Context in full. A percentage represents used quota, not remaining quota.
 
 ## Verified foundations and unresolved dependencies
 
@@ -44,7 +45,7 @@ Keep one small local integration. No database, hosted backend, or independently 
 
 Each snapshot includes a session-local account key, optional thread and turn identifiers, observedAt, sourceVersion, and per-metric availability: loading, available, stale, unavailable, or error. Unknown values are null; zero is a real reported value.
 
-QuotaWindow contains the source bucket identity, windowDurationMins, usedPercent, and resetsAt. Select the appropriate account bucket explicitly; prefer rateLimitsByLimitId when present. Match 300-minute and 10080-minute windows by duration rather than assuming primary always means 5h. If those durations are absent, show unavailable or the actual supported duration rather than relabeling another quota.
+QuotaWindow contains the source bucket identity, windowDurationMins, usedPercent, and resetsAt. Select the appropriate account bucket explicitly; prefer rateLimitsByLimitId when present. For the initial release, match the weekly 10080-minute window by duration. Reserve matching a 300-minute window for the deferred 5h feature; do not assume primary always means 5h. If the expected duration is absent, show unavailable or the actual supported duration rather than relabeling another quota. The initial view does not render the deferred 5h field.
 
 Display bars between 0 and 100%; preserve the raw source value for diagnostics. Reject malformed or negative values. Calculate countdown from the source reset timestamp and the current clock, using a known service-clock offset only when supplied. At expiry show Updating until fresh quota arrives; reaching a timestamp alone never proves the quota has reset.
 
@@ -71,8 +72,8 @@ Use the status bar's container width, not the full display width. An open sideba
 The latest user preference supersedes the initial medium two-column and narrow stacked layouts: shrink in place first, progressing from bar shrinking to text shrinking.
 
 Preferred fitting sequence:
-1. Keep all four pills on one row and let the outer bar follow the available composer/container width.
-2. Let quota progress tracks shrink first. Their visual width is flexible; percentage and countdown text remain visible. At extreme widths the track may collapse while retaining textual and accessible usage information.
+1. Keep all three initial pills on one row (four only if the future 5h feature is enabled) and let the outer bar follow the available composer/container width.
+2. Let the weekly progress track shrink first (and the 5h track if added later). Their visual width is flexible; percentage and countdown text remain visible. At extreme widths the track may collapse while retaining textual and accessible usage information.
 3. Reduce gaps and pill padding proportionally.
 4. Reduce text size smoothly within a readable range, initially targeting approximately 16 CSS px down to 12 CSS px. Preserve full labels, percentages, units and countdowns.
 5. Wrap only when a single row cannot fit at readable text size and minimum spacing, or when accessibility text scaling requires reflow. This is a last-resort fallback, not an automatic medium-width layout.
@@ -88,19 +89,21 @@ Use normal-flow layout in a supported host. The bar must not cover the editor, s
 ## Implementation slices and acceptance
 
 1. Feasibility spike — demonstrate the intended account/chat binding, hosting position, and one real quota response. Record actual interfaces and unsupported capabilities in the ADR. Stop choosing an implementation stack until this dependency is resolved.
-2. Quotas — connect the real account data, normalize 5h/week windows, and verify percentage semantics and countdown rollover.
+2. Quotas — connect the real account data, normalize the weekly window, and verify percentage semantics and countdown rollover.
 3. Responsive UI — build the reference design against clearly fictional fixtures, exercise wide and narrow fitting stages, and retain all metrics without overflow.
 4. Thread metrics — add only verified context and token-speed calculations; demonstrate compaction and chat-switch behavior.
 5. Composition — exercise the actual host, real reads, disconnect/reconnect, account switching, stale events, and disable/uninstall.
-6. Public release — document supported hosts and versions, installation and rollback, known limitations, and the chosen license. Public repository creation is authorized; application publishing or installation is not implied by this planning request.
+6. Deferred 5h usage — retain its data contract and future position after weekly, but implement/render it only in a later expressly requested feature slice.
+7. Public release — document supported hosts and versions, installation and rollback, known limitations, and the chosen license. Public repository creation is authorized; application publishing or installation is not implied by this planning request.
 
-Acceptance evidence must include 320, 375, 480, 768, 900, and 1280 px container widths, intermediate widths around each content-fitting threshold, a narrow composer with the sidebar open, and 200% text/browser zoom where supported. Confirm tracks shrink before text and wrapping is used only after the readable one-row layout cannot fit. Check 0%, 100%, missing/error/stale data, long countdowns, and changing digits. Verify no horizontal overflow, cropped labels, hidden countdowns, or obstruction of composer controls.
+Acceptance evidence must include 320, 375, 480, 768, 900, and 1280 px container widths, intermediate widths around each content-fitting threshold, a narrow composer with the sidebar open, and 200% text/browser zoom where supported. Confirm tracks shrink before text and wrapping is used only after the readable one-row layout cannot fit. Check initial order weekly → speed → Context, absence of a 5h pill/placeholder, and the future reserved order weekly → 5h → speed → Context. Check 0%, 100%, missing/error/stale data, long countdowns, and changing digits. Verify no horizontal overflow, cropped labels, hidden countdowns, or obstruction of composer controls.
 
 Adapter tests cover malformed payloads, swapped window order, extra quota buckets, reset expiry, clock changes, reconnect, and identity isolation. Integration checks must show UI values agreeing with the authoritative source. A fixture or passing unit test alone cannot establish desktop integration.
 
 ## Public repository boundaries
 
 Repository name: codex-usage. Display name: Codex Usage.
+Initial feature set: weekly usage, token speed, Context. 5-hour usage is planned only and absent from the initial UI.
 Start with this plan and a README that clearly says planning stage. Publish only project-owned source and documentation; exclude credentials, account identifiers, private transcripts, machine paths, and local caches. Select and record a license before describing released code as licensed open source.
 
 ## Sources
