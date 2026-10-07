@@ -24,9 +24,9 @@ Weekly displays quota remaining, matching Codex’s “% left” wording; the in
 
 This modification is version-pinned to desktop `26.930.61225`, using the inspected original archive hash. It is not a supported plugin extension point. A desktop update requires new inspection before patching. The exact original app is retained in `Safe Build`; the locally signed candidate occupies `New Build`. App binaries and extracted vendor code are excluded from publication. The builder dynamically synchronizes the enabled native archive digest before signing and rejects inconsistent candidates. After installation, New Build retains the previous verified mod for transactional recovery; Safe Build is never used as an automatic mod-removing fallback.
 
-## Install
+## Install (macOS)
 
-Requires Apple Silicon macOS, Python 3.9+, Node.js 20+, and the inspected Codex desktop **26.930.61225** at `/Applications/ChatGPT.app`. Keep the downloaded checkout on the same disk as `/Applications`. Windows is unsupported: it requires its own inspected bundle, installer and native installation/recovery tests; the macOS platform guard must not be bypassed.
+Requires Apple Silicon macOS, Python 3.9+, Node.js 20+, and the inspected Codex desktop **26.930.61225** at `/Applications/ChatGPT.app`. Keep the downloaded checkout on the same disk as `/Applications`. Windows uses the separate experimental installer below; the macOS platform guard must not be bypassed.
 
 From this repository, run in **macOS Terminal**, outside Codex:
 
@@ -50,7 +50,22 @@ After installation, confirm the usage row renders, then normally quit and reopen
 
 ## Windows
 
-Windows support will be developed and tested on a Windows PC. The current installer supports Apple Silicon macOS only. See the [Windows port handoff](docs/Windows%20Port.md) for package inspection, platform boundaries and the checks required before a Windows release.
+An experimental x64 Windows port supports Store package **26.1002.7124.0**, whose renderer version is **26.1002.52244**. Python 3.10+ and that exact installed Store build are required. Unknown versions and changed source hashes are rejected.
+
+Run from this checkout in PowerShell:
+
+```powershell
+python scripts/windows_setup.py --check
+python scripts/windows_setup.py --build
+$build = (Get-Content -Raw .local-windows/latest.json | ConvertFrom-Json).build
+python scripts/windows_setup.py --install "$build"
+```
+
+The separate copy installs under `%LOCALAPPDATA%\OpenAI\CodexUsage`, with a **Codex Usage (local mod)** Start menu shortcut. Quit the Store app normally, then open that shortcut. The launcher uses the usual profile and refuses to open while another ChatGPT desktop instance is running. Store files and registration are preserved. Build files are local only and excluded from Git.
+
+The changed launcher is unsigned and explicitly local; its stale vendor signature is removed. The native ASAR hash is updated and integrity fuses remain enabled. No certificate trust or Windows security policy is changed.
+
+Source signatures, candidate integrity, Windows recovery tests and browser layout tests passed on Windows 11. The native usage row rendered, Weekly matched the core account quota, and Goal creation worked in a chat owned by the mod. The row also supports local new-chat screens above Goal and the project/computer controls. **Live token speed, native diff interaction and full normal-launch acceptance remain pending.** This is a local preview, not a supported Windows release. See [Windows installation and acceptance](docs/Windows%20Port.md), including the Goal restriction when a development instance is following a chat owned by another window.
 
 ## Verification
 
