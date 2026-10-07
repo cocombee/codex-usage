@@ -2,7 +2,9 @@
 
 A planned responsive status bar for the Codex desktop experience.
 
-The bar is intended to show **5-hour usage**, **weekly usage**, **token speed**, and **Context usage**, using dark rounded pills and teal progress bars. Quota countdowns stay visible; reset icons and reset actions are excluded. "Context" is always written in full.
+The initial bar is intended to show **weekly usage → token speed → Context usage**, using dark rounded pills and a teal quota progress bar. The weekly countdown stays visible; reset icons and reset actions are excluded. "Context" is always written in full.
+
+**5-hour usage is in the future plan only**, omitted from the initial display. If added later, the order becomes **weekly → 5h → token speed → Context**.
 
 ## Status
 
