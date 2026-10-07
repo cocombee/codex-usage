@@ -9,3 +9,4 @@ node_modules/
 local-*.log
 local-*.lock
 local-install.command
+.local-windows/

@@ -67,7 +67,8 @@ class SetupTests(unittest.TestCase):
         script = str(Path(setup.__file__).resolve())
         for arguments in [[],['--check'],['--accept','--confirm-rendered-ui','--confirm-quit-reopen']]:
             with self.subTest(arguments=arguments):
-                source = '''import builtins,platform,runpy,signal,sys
+                # Initialize the host's stdlib before simulating Windows imports.
+                source = '''import builtins,platform,runpy,signal,subprocess,sys
 platform.system=lambda:'Windows'
 platform.machine=lambda:'AMD64'
 original_import=builtins.__import__
@@ -86,6 +87,8 @@ runpy.run_path(SCRIPT,run_name='__main__')
 
     def test_pending_update_reserves_protection_and_rollback_copy_space(self):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            stack.enter_context(patch.object(setup.platform,'system',return_value='Darwin'))
+            stack.enter_context(patch.object(setup.platform,'machine',return_value='arm64'))
             root = Path(directory)
             app = root / 'ChatGPT.app'; app.mkdir()
             receipt = root / 'receipt.json'

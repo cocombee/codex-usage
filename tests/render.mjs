@@ -7,11 +7,13 @@ import path from 'node:path';
 const runtime=process.env.CODEX_USAGE_NODE_MODULES;
 if(!runtime)throw new Error('Set CODEX_USAGE_NODE_MODULES to the bundled runtime node_modules path');
 const require=createRequire(import.meta.url),{chromium}=require(path.join(runtime,'playwright'));
-const server=spawn('python3',['scripts/preview.py'],{stdio:['ignore','pipe','inherit']});let browser;
+const windows=process.platform==='win32';
+const server=spawn(process.env.CODEX_USAGE_PYTHON??(windows?'python':'python3'),['scripts/preview.py',...(windows?['--windows']:[])],{stdio:['ignore','pipe','inherit'],windowsHide:true});let browser;
 function check(value,message){if(!value)throw new Error(message);}
 try{
   const [chunk]=await Promise.race([once(server.stdout,'data'),once(server,'exit').then(([code])=>{throw new Error('Fixture server exited: '+code);})]);
-  browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
+  const executablePath=process.env.CODEX_USAGE_BROWSER??(windows?path.join(process.env.PROGRAMFILES,'Google/Chrome/Application/chrome.exe'):'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+  browser=await chromium.launch({executablePath,headless:true});
   const page=await browser.newPage(),errors=[],results=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(chunk.toString().trim());
   try{await page.waitForSelector('.cu-changes button',{timeout:5000});}catch(error){throw new Error(error.message+'; React errors: '+errors.join('; '));}
