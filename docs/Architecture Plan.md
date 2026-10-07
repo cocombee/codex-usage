@@ -1,120 +1,51 @@
-# Codex Usage — Architecture Plan
+# Codex Usage Architecture Plan
 
-Status: Proposed; research and planning only.
-Updated: 7 October 2026.
+Accepted desktop modification. The prior supported-side-panel option was superseded by the user's request for a fixed row above the chat input.
 
-## Intended behavior
+## Current slice
 
-Display a persistent usage bar in the Codex desktop experience, preferably above the message box. Preserve the reference's dark rounded container, pill shapes, muted labels, brighter numeric values, teal quota progress bars, and lightning indicator for speed.
+Render Weekly, the native Files changed control, estimated token speed and Context in a row of native-styled pills. Preserve native chat input, plans, environment progress and additional fixed-content portals. Files changed is embedded only when the existing in-progress native control would be shown; its completed transcript representation remains owned by Codex.
 
-The user's latest direction keeps 5-hour usage in the future plan only. It is omitted from the initial display, including any empty placeholder. This supersedes the earlier plan that included it in the initial bar.
+Codex owns account/model quota state, selected chat token usage, native diff state and all actions. Codex Usage owns only presentation, per-chat portal registration and a bounded in-memory timing estimate. The usage row precedes the native Goal/utility group. Native positioning and geometry remain unchanged. A measured overflow reserve in the composer stack prevents the native absolute utility strip from overlapping Usage; the native strip remains attached to the composer. Usage adopts the native rail width/inset. The composer passes only the normalized core account quota bucket. Both number and fill derive from remaining quota. The native turn component retains its existing selectors and diff component, redirecting that component into the matching host/chat portal. It falls back to native placement if the bar is absent.
 
-Initial order: week, lightning tok/s, Context.
-Future order if 5-hour usage is added: week, 5h, lightning tok/s, Context.
-The weekly pill shows percentage used and time until reset; a future 5h pill would do the same. Omit all reset icons and reset actions. Always spell Context in full. A percentage represents used quota, not remaining quota.
+The UI inherits the native chat font. At full width, 70% of spare width extends the 100 logical CSS px Weekly track; the remainder is evenly distributed per object gap and horizontal end inset. Fitting uses three groups, with only necessary reductions inside each: (1) tighten spacing and shrink the track toward 16 px, then remove `left` and extra countdown units; (2) pair `token/s` → `tok/s` with `Context` → `Ctx` and hide Weekly, then hide the speed icon/tighten spacing if needed; (3) apply 14/12 px text caps if needed. Once days are gone, hours appear alone in every layout; below one hour, minutes remain visible. Restoration requires an 8 logical CSS px buffer. The percentage, track and metric order remain intact on a single row. Each chip follows the native Files changed surface and rounded-3xl corners; the row has no extra outer container or padding. Weekly colors use existing semantic tokens: normal above 20%, yellow above 10% through 20%, red at 10% or below remaining. The gap from Usage to the native group (or composer when absent) is 8 CSS px. Zoom-aware measurements prioritize Goal and preserve its native inset when no rail is visible without altering native Apps/Goal/composer geometry.
 
-## Verified foundations and unresolved dependencies
+No new persistence, network endpoint, credentials, durable telemetry or message submission path. Speed samples are bounded to ten model-response segments and 256 host/chat entries. Account switches and counter resets clear them. Version/hash gates protect the inspected app patch.
 
-The public Codex repository contains app-server implementation. Official documentation provides account/rateLimits/read, account/rateLimits/updated, and thread/tokenUsage/updated. These are integration building blocks, not evidence of access from an ordinary plugin to the current desktop session.
+## Acceptance evidence
 
-Documented plugin UI surfaces include conversation panels and composer mentions. No permanent above-composer status-bar slot has been established. Do not call an implementation a native desktop plugin until its actual placement and data flow are exercised.
+- Unit checks: weekly window slots, unknown versus zero, current-context totals, timing aggregation, duplicate events, account isolation, portal cleanup and warning threshold.
+- Isolated renderer checks: existing React, native font sizes 12/14/18/20/24, seven widths from 320 to 1280, 188 px effective reflow, track visibility, native chip corners, absent outer frame, utility-strip spacing, input gap, unknown/zero/expired states, diff click/keyboard, native fallback and retained plan row.
+- Candidate checks: unique source anchors, generated-module syntax, archive readback, unchanged unrelated entries, updated archive/header/dictionary/native integrity, preserved fuses, and strict deep signature verification after dependency-ordered signing.
+- Pending: installed live account metrics, actual native diff opening and tooltip, native font/theme changes, cloud/remote behavior, and user visual acceptance. A fixture is not proof of these live flows.
 
-Before selecting a stack, inspect the target desktop version and demonstrate:
-1. A supported or clearly characterized UI hosting path.
-2. Read-only access to the intended signed-in account.
-3. Accurate active-chat identification and event subscription.
-4. An uninstall/recovery path.
-5. Compatibility with host security boundaries.
+## Deferred five-hour usage
 
-A side panel, companion overlay, or separate open-source client changes the requested placement or product. Keep these alternatives in the ADR; do not silently substitute them.
+Five-hour quota stays in the plan only. A future opt-in implementation selects the existing 300-minute window by duration, retains unknown/reset behavior and native usage color rules, and uses the same responsive and account/model ownership. It belongs between Weekly and token speed in the metric priority; the accepted Files changed slot remains adjacent to Weekly. Final ordering and enablement need an explicit future product decision. No five-hour pill or reset icon is rendered now.
 
-## Module boundaries
+## Delivery and recovery
 
-| Module | Ownership | Dependencies |
-| --- | --- | --- |
-| Host adapter | Connection lifecycle, active account/chat binding, capabilities and raw events | Verified host interface |
-| Quota adapter | Normalize account quota windows and reset timestamps | Host adapter |
-| Thread metrics adapter | Current context and speed evidence for one chat/response | Host adapter and verified event schema |
-| Metrics store | Read-only snapshots, freshness, identity isolation and derived presentation values | Both metric adapters |
-| Status bar | Rendering, layout, accessibility and countdown presentation | Metrics store |
-| Packaging | Installation, compatibility detection, disable/uninstall and release documentation | Chosen host integration |
-
-Keep one small local integration. No database, hosted backend, or independently deployed service is planned.
-
-## Data contract
-
-Each snapshot includes a session-local account key, optional thread and turn identifiers, observedAt, sourceVersion, and per-metric availability: loading, available, stale, unavailable, or error. Unknown values are null; zero is a real reported value.
-
-QuotaWindow contains the source bucket identity, windowDurationMins, usedPercent, and resetsAt. Select the appropriate account bucket explicitly; prefer rateLimitsByLimitId when present. For the initial release, match the weekly 10080-minute window by duration. Reserve matching a 300-minute window for the deferred 5h feature; do not assume primary always means 5h. If the expected duration is absent, show unavailable or the actual supported duration rather than relabeling another quota. The initial view does not render the deferred 5h field.
-
-Display bars between 0 and 100%; preserve the raw source value for diagnostics. Reject malformed or negative values. Calculate countdown from the source reset timestamp and the current clock, using a known service-clock offset only when supplied. At expiry show Updating until fresh quota arrives; reaching a timestamp alone never proves the quota has reset.
-
-ContextMetric contains the current effective context token count, verified usable context capacity, threadId, and basis. Establish the exact source fields and capacity semantics before calculating a percentage. Lifetime/account totals and cumulative pre-compaction tokens cannot stand in for current context. Rebind after compaction, model changes, and chat switches.
-
-SpeedMetric contains turnId, output token count, measured interval, and basis: measured or estimated. Verify which generation interval and token counters are available. Do not present character counts or tool-runtime averages as exact token speed. If exact timing is unavailable, clearly label any validated estimate with an approximation marker; otherwise show a dash. Define idle and interrupted-turn behavior before enabling the live speed pill.
-
-HostAdapter exposes connect, disconnect, readAccountLimits, subscribeAccountLimits, and subscribeThreadMetrics. These are proposed internal interfaces, not claims that the desktop exposes corresponding plugin APIs.
-
-## Refresh, persistence, and recovery
-
-Read quotas on connection and refresh from events. If polling is necessary, use a bounded fallback such as 60 seconds while visible, plus a debounced refresh on focus/reconnect; honor rate limits and back off on errors. Update displayed countdowns locally without making a network request per tick. Render stream metrics at a bounded rate.
-
-Clear account-specific state immediately on account change or logout. Clear thread-specific values before subscribing to a different chat. Ignore late events that belong to the previous account, chat, or turn. Mark interrupted connections stale; reconnect, re-read, and re-subscribe before returning to available.
-
-Keep authoritative metrics in memory. Persist only versioned presentation preferences if needed. Never persist tokens or private chat content in this repository, screenshots, frontend bundles, or diagnostic logs. Use the host's supported authentication boundary; do not extract browser cookies or assume access to desktop credentials.
-
-No user-data migration is planned. If settings are introduced, add versioned defaults and a tested fallback for unreadable older settings. Disabling or uninstalling must remove only this integration and preserve chats and credentials. App modification, if later selected explicitly, needs a verified backup and rollback design before installation.
-
-## Responsive design contract
-
-Use the status bar's container width, not the full display width. An open sidebar or panel can leave a narrow composer on a large monitor. Prefer container queries or an equivalent native layout mechanism after the hosting technology is verified.
-
-The latest user preference supersedes the initial medium two-column and narrow stacked layouts: shrink in place first, progressing from bar shrinking to text shrinking.
-
-Preferred fitting sequence:
-1. Keep all three initial pills on one row (four only if the future 5h feature is enabled) and let the outer bar follow the available composer/container width.
-2. Let the weekly progress track shrink first (and the 5h track if added later). Their visual width is flexible; percentage and countdown text remain visible. At extreme widths the track may collapse while retaining textual and accessible usage information.
-3. Reduce gaps and pill padding proportionally.
-4. Reduce text size smoothly within a readable range, initially targeting approximately 16 CSS px down to 12 CSS px. Preserve full labels, percentages, units and countdowns.
-5. Wrap only when a single row cannot fit at readable text size and minimum spacing, or when accessibility text scaling requires reflow. This is a last-resort fallback, not an automatic medium-width layout.
-
-Keep order stable. Never truncate Context to ctx or hide a metric's value/countdown. Use tabular numerals so digit changes do not cause avoidable movement. Do not scale the entire component with a CSS transform: the component's measured layout must actually fit its container.
-
-Choose fitting thresholds from rendered measurements with the longest valid content, rather than untested fixed breakpoints. Recompute on container resize and text scaling; prefer container queries and flexible layout where possible, and avoid resize-observer feedback loops. Preserve a clear layout contract that works without hover.
-
-Start with approximately #222 outer surface, #333 pill surface, #555 track, #73BFC1 fill, muted gray labels and near-white values. Treat these as reference-matching targets; verify contrast in the final host theme. Keep generous rounded corners and proportionate spacing, reducing padding before reducing readable text size.
-
-Use normal-flow layout in a supported host. The bar must not cover the editor, send button, attachments, menus, voice controls, or text selection. Preserve keyboard navigation and focus. Add accessible metric labels, progress semantics, and explanatory tooltip/focus text where useful. Avoid announcing every countdown tick to screen readers. Avoid essential hover-only information and respect reduced motion.
-
-## Implementation slices and acceptance
-
-1. Feasibility spike — demonstrate the intended account/chat binding, hosting position, and one real quota response. Record actual interfaces and unsupported capabilities in the ADR. Stop choosing an implementation stack until this dependency is resolved.
-2. Quotas — connect the real account data, normalize the weekly window, and verify percentage semantics and countdown rollover.
-3. Responsive UI — build the reference design against clearly fictional fixtures, exercise wide and narrow fitting stages, and retain all metrics without overflow.
-4. Thread metrics — add only verified context and token-speed calculations; demonstrate compaction and chat-switch behavior.
-5. Composition — exercise the actual host, real reads, disconnect/reconnect, account switching, stale events, and disable/uninstall.
-6. Deferred 5h usage — retain its data contract and future position after weekly, but implement/render it only in a later expressly requested feature slice.
-7. Public release — document supported hosts and versions, installation and rollback, known limitations, and the chosen license. Public repository creation is authorized; application publishing or installation is not implied by this planning request.
-
-Acceptance evidence must include 320, 375, 480, 768, 900, and 1280 px container widths, intermediate widths around each content-fitting threshold, a narrow composer with the sidebar open, and 200% text/browser zoom where supported. Confirm tracks shrink before text and wrapping is used only after the readable one-row layout cannot fit. Check initial order weekly → speed → Context, absence of a 5h pill/placeholder, and the future reserved order weekly → 5h → speed → Context. Check 0%, 100%, missing/error/stale data, long countdowns, and changing digits. Verify no horizontal overflow, cropped labels, hidden countdowns, or obstruction of composer controls.
-
-Adapter tests cover malformed payloads, swapped window order, extra quota buckets, reset expiry, clock changes, reconnect, and identity isolation. Integration checks must show UI values agreeing with the authoritative source. A fixture or passing unit test alone cannot establish desktop integration.
-
-## Public repository boundaries
-
-Repository name: codex-usage. Display name: Codex Usage.
-Initial feature set: weekly usage, token speed, Context. 5-hour usage is planned only and absent from the initial UI.
-Start with this plan and a README that clearly says planning stage. Publish only project-owned source and documentation; exclude credentials, account identifiers, private transcripts, machine paths, and local caches. Select and record a license before describing released code as licensed open source.
-
-## Sources
-
-- [Codex repository](https://github.com/openai/codex)
-- [Open-source components](https://learn.chatgpt.com/docs/open-source)
-- [App Server protocol and usage endpoints](https://learn.chatgpt.com/docs/app-server)
-- [Plugin extensions and supported UI surfaces](https://developers.openai.com/plugins/build/extensions)
+One exact `Safe Build` and one replaceable `New Build`, both local and excluded from Git. Build and verify the complete batch before installation. Installation needs an app quit/relaunch boundary; other active chats must be accounted for. Preserve the Safe Build unchanged. New Build retains the complete previous verified mod after promotion; failed startup recovers by atomic exchange to that mod, followed by one recovery launch. A finite independent Terminal worker records installation and process health. Normal user quit/relaunch and native UI acceptance remain separate evidence. Refuse unreviewed app updates. Source publication is a separate Git action.
 
 ## Startup and signing prevention
 
 Future desktop-mod builds must follow [Startup And Signing Prevention](Startup%20And%20Signing%20Prevention.md) and the repository's [AGENTS.md](../AGENTS.md). These requirements supersede older startup/signing guidance. Static integrity/signature checks and process health are separate from rendered UI and normal quit/reopen verification of the exact installed app.
 
-This handoff is documentation only; it does not authorize UI changes, a repair agent, installation, launch, or restart.
+Recording the prevention handoff alone does not authorize implementation or restart; later explicit user requests authorize the current implementation and delivery.
+
+## Single-row responsive correction
+
+The latest user instruction forbids wrapping. Actual pill contents, native diff counts, font size and available row width trigger the fitting sequence: progress track shrinks, spacing tightens, compact labels/countdown appear, the speed icon disappears, Weekly disappears, then text reduces within the readable minimum. Context cannot move to a second row. Fitting reruns when native diff content, metrics, font or container size changes. At widths below the irreducible readable content width, only the usage shell scrolls horizontally; all metrics remain on one row and the native composer/page do not overflow. The prevention-note push contained documentation only. Later user instructions authorized implementation and installation; source publication remains separate.
+
+
+## Public installation entry point
+
+`setup.py` owns one-command Terminal orchestration and compatibility checks; `mod.py` owns candidate construction and atomic exchange; `signing.py` owns separate vendor-source and local-candidate policies; `integrity.py` owns hash/native-digest validation; `install_once.py` owns durable lifecycle receipts and bounded launch/recovery. The install lock spans build through startup. A valid pinned vendor source is accepted without applying ad-hoc entitlement rules to its existing signature. Those vendor claims are removed only in the local candidate. Apps initially closed are supported without signalling PID 0. Build timeout terminates its process group before quitting Codex. A stuck quit cannot trigger replacement. Detailed flow and pending clean-install acceptance are in [Installation](Installation.md).
+
+
+The latest user-approved chat/composer-width thresholds are Stage 1 at 620 px, Stage 2 at 580 px and Stage 3 at 490 px, all logical CSS pixels. Native composer width determines these triggers, independently of whole-window width and the narrower Goal/Usage rail. Stage 1 removes `left` and extra countdown units; Stage 2 pairs compact token/context labels and hides Weekly; Stage 3 applies readable text caps. Content fitting still prevents wrapping, and restoration has an 8 px buffer. At every fit level, width left after natural content and minimum/standard spacing is split 70% to the track and 30% equally per object gap and horizontal end inset. The repository publishes original source, installer, tests and documentation; app binaries, extracted vendor assets and local operational data are excluded.
+
+
+## Future stable signing
+
+The current installer uses the tested local ad-hoc signing policy. Preserve account data and existing permissions; never reset TCC, alter trust stores, spoof the vendor identity or grant permissions automatically to hide a prompt. A future optional persistent signing identity should use the user's own certificate, keep the signing identity consistent across updates, verify the same designated requirement across two different builds, and preserve all current integrity/runtime checks. Certificate access, first migration and macOS authorization can still require user interaction; do not advertise zero prompts until tested on actual updates. Keep identity selection and signing receipts local, without publishing personal certificate metadata or private keys. See [Apple TN3127](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements).

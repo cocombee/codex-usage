@@ -1,3 +1,5 @@
+> Historical integration options. The accepted desktop mod and current delivery are described in [ADR 002](ADR%20002%20Desktop%20Mod.md) and [Codex Usage Handoff](Codex%20Usage%20Handoff.md).
+
 # ADR 001 — Desktop Integration
 
 Status: Proposed; feasibility unresolved.

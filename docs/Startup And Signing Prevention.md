@@ -41,3 +41,5 @@ The dynamic digest helper is `native_integrity_sync.py`; signing/crash evidence 
 This note records the supplied findings and authorization scope; no new runtime verification was performed for it. It supersedes earlier startup guidance that preserves restricted vendor claims during ad-hoc signing or accepts installation based only on static checks/process health. It does not claim that every requirement is implemented in the current builder.
 
 For future work, report build verification, installed-bundle verification, rendered UI verification, and normal installed-app quit/reopen verification separately. Leave authentication and security prompts to the user.
+
+The later user-authorized implementation and one-command installer are documented in [Installation](Installation.md). Source-signing policy checks and process health remain separate from clean-install and native UI acceptance.
