@@ -112,3 +112,9 @@ Start with this plan and a README that clearly says planning stage. Publish only
 - [Open-source components](https://learn.chatgpt.com/docs/open-source)
 - [App Server protocol and usage endpoints](https://learn.chatgpt.com/docs/app-server)
 - [Plugin extensions and supported UI surfaces](https://developers.openai.com/plugins/build/extensions)
+
+## Startup and signing prevention
+
+Future desktop-mod builds must follow [Startup And Signing Prevention](Startup%20And%20Signing%20Prevention.md) and the repository's [AGENTS.md](../AGENTS.md). These requirements supersede older startup/signing guidance. Static integrity/signature checks and process health are separate from rendered UI and normal quit/reopen verification of the exact installed app.
+
+This handoff is documentation only; it does not authorize UI changes, a repair agent, installation, launch, or restart.

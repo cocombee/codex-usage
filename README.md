@@ -26,3 +26,7 @@ Responsive behavior is part of the initial implementation: keep one row while sh
 - [Plugin extensions](https://developers.openai.com/plugins/build/extensions)
 
 This is an independent project, not an official OpenAI product. Repository publication does not indicate implementation, installation, or verified desktop integration.
+
+## Startup and signing prevention
+
+Future desktop-mod build/signing work follows [AGENTS.md](AGENTS.md) and [Startup And Signing Prevention](docs/Startup%20And%20Signing%20Prevention.md). The prevention handoff is documentation only and does not authorize a repair agent, installation, or restart.
