@@ -159,9 +159,11 @@ class DynamicSynchronizationTests(unittest.TestCase):
             sync.verify_entries(path, ['main.js'])
 
     def test_sync_refuses_installed_or_external_bundle_before_inspection(self):
+        external = sync.ROOT / 'Applications' / 'ChatGPT.app'
+        external.mkdir(parents=True)
         with patch.object(sync, 'inspect') as inspect:
             with self.assertRaisesRegex(ValueError, 'Only canonical staged bundles'):
-                sync.patch_digest('/Applications/ChatGPT.app')
+                sync.patch_digest(external)
             inspect.assert_not_called()
 
     def test_guard_detects_bundle_change_during_signature_verification(self):
