@@ -1,4 +1,4 @@
-# Codex Usage Project Instructions
+# Codex Usage Bar Project Instructions
 
 ## Startup and signing prevention
 

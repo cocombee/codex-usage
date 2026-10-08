@@ -1,6 +1,6 @@
 # Windows Port
 
-Windows support is unfinished. The current Codex Usage installer supports only its inspected Apple Silicon macOS build. Run this port and its installation tests on the Windows PC before advertising a usable Windows release. The browser UI modules can be reused, but the macOS app layout, source hashes, native integrity parser, signing and installation code cannot establish Windows compatibility.
+Windows support is unfinished. The current Codex Usage Bar installer supports only its inspected Apple Silicon macOS build. Run this port and its installation tests on the Windows PC before advertising a usable Windows release. The browser UI modules can be reused, but the macOS app layout, source hashes, native integrity parser, signing and installation code cannot establish Windows compatibility.
 
 ## Official package
 

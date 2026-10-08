@@ -1,4 +1,4 @@
-# Codex Usage
+# Codex Usage Bar
 
 A local Codex desktop modification that adds a fixed usage row immediately above the chat input.
 
