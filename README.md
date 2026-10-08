@@ -14,7 +14,7 @@ Codex Usage Bar is a community desktop modification that uses Codex's existing a
 | --- | --- |
 | **Weekly** | Account quota remaining and its reset countdown. The progress track shows the same remaining percentage. |
 | **Files changed** | The selected chat's native control, with its existing diff action. |
-| **Token speed** | An approximate, per-chat tokens-per-second estimate, marked `~`. |
+| **Token speed** | An approximate, per-chat tokens-per-second estimate, marked `~`, during a running turn. It clears to `—` when the turn finishes or the chat becomes idle. |
 | **Context** | Context usage from the selected conversation's existing token-usage state. |
 
 Missing data appears as `—`, never a fabricated zero. The row adapts to narrow composer widths by shortening labels and spacing; it keeps one row and follows the host's theme and font. Five-hour usage is not implemented.

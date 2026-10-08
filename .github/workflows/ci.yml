@@ -38,6 +38,8 @@ jobs:
           python-version: '3.11'
       - name: Test usage metrics, speed, and diff ownership
         run: node --test tests/diff-slot.test.mjs tests/metrics.test.mjs tests/speed.test.mjs
+      - name: Test shared speed delivery through both platform adapters
+        run: python -B tests/shared-speed.test.py
       - name: Test signing policy
         run: python -B tests/signing.test.py
       # These suites use disposable fixtures and mocked app processes/signatures.
