@@ -1,0 +1,11 @@
+Safe Build/
+New Build/
+Protected Recovery/
+.codex-usage-recovery-*/
+__pycache__/
+*.pyc
+local-*.json
+node_modules/
+local-*.log
+local-*.lock
+local-install.command

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Codex Usage layout fixture</title>
+<style>
+  body{margin:0;background:#151515;color:#eee;font-family:system-ui;--home-composer-inline-inset:12px;--codex-chat-font-size:14px;--color-background-primary-solid:#eee;--color-chart-red:#ff4949;--color-chart-yellow:#e3b341}
+  main{width:calc(100% - 72px);max-width:1100px;margin:24px auto}
+  .fixture-note{font-size:12px;color:#aaa;margin-bottom:12px}
+  .fixture-composition{display:flex;flex-direction:column;gap:8px}
+  .fixture-goal{box-sizing:border-box;width:calc(100% + 48px - 2 * var(--home-composer-inline-inset));margin-inline:calc(var(--home-composer-inline-inset) - 24px);padding:12px;background:#262626;border-radius:20px 20px 0 0;font-size:var(--codex-chat-font-size)}
+  .fixture-native-chrome{position:relative;width:calc(100% + 48px);margin-inline:-24px}
+  .fixture-stack{display:flex;flex-direction:column;gap:8px;position:relative}
+  .fixture-utility{display:flex;flex-wrap:wrap;gap:16px;padding:12px;background:#262626;border-radius:20px 20px 0 0;position:absolute;inset-inline:var(--home-composer-inline-inset);bottom:100%;font-size:var(--codex-chat-font-size)}
+  #native-panels{display:contents}#native-panels:empty{display:none}
+  .fixture-input{border:1px solid #444;background:#333;border-radius:24px;padding:18px;color:#aaa;min-height:60px;font-size:var(--codex-chat-font-size)}
+  .fixture-diff{display:flex;align-items:center;gap:4px;background:none;border:0;padding:0;color:#aaa;font-size:var(--codex-chat-font-size);font-family:inherit;cursor:pointer}
+  .fixture-diff:focus-visible{outline:2px solid #73bfc1;outline-offset:4px}
+  .fixture-counts{display:flex;gap:4px;font-size:calc(var(--codex-chat-font-size) - 1px)}
+  .relative{position:relative;min-height:32px}.flex{display:flex;align-items:center;justify-content:center;gap:8px}
+  .absolute{position:absolute;inset:0}.empty\\:hidden:empty{display:none}
+</style>
+<main><div class="fixture-note">Layout fixture · fictional sample values</div><div class="fixture-composition"><div data-composer-rail-placement="above" style="width:180px;height:0;position:absolute"></div><div id="usage" data-cu-placement></div><div id="native-panels"></div><div class="fixture-goal" data-composer-rail data-composer-rail-placement="above" style="display:none"><div data-cu-native-goal data-composer-rail-framed="false" data-composer-rail-placement="above" style="width:90%">Goal · Fictional test objective</div></div><div class="fixture-stack" data-cu-composer-stack><div class="fixture-native-chrome"><div class="fixture-utility" data-cu-native-utility data-composer-rail data-composer-rail-placement="above" style="display:none"><span>Apps</span><span>This computer</span><div data-composer-rail-framed="false" data-composer-rail-placement="above" style="position:absolute;width:90%;height:1px;pointer-events:none"></div></div><div class="fixture-input" data-composer-surface-variant="default">Message Codex</div></div></div></div></main>
+<script type="module">
+  import {cfn as loadReact, eln as loadJSX, Zcn as loadDOM, Qcn as loadPortal} from '/__host/app-shared-122c56612a72.js';
+  import {createBar} from '/src/bar.mjs';
+  import {useNativeLayout} from '/src/native-layout.mjs';
+  import {observeMetric} from '/src/speed.mjs';
+  import {renderNativeFixed} from '/src/native-fixed.mjs';
+  const React=loadReact(), JSX=loadJSX(), DOM={...loadDOM(),...loadPortal()}, Bar=createBar(React,JSX);
+  const host='layout-fixture', thread='fictional-thread', turn='fictional-turn';
+  for(const [method,params,now] of [
+    ['turn/started',{turn:{id:turn}},0],
+    ['item/agentMessage/delta',{turnId:turn,delta:'x'},4000],
+    ['item/agentMessage/delta',{turnId:turn,delta:'x'},5000],
+    ['thread/tokenUsage/updated',{tokenUsage:{last:{outputTokens:109},total:{outputTokens:109}}},5000]])
+    observeMetric(host,method,{threadId:thread,...params},now);
+  const root=DOM.createRoot(document.getElementById('usage'));
+  let clicks=0, state='normal';
+  function Diff({showLeadingSeparator}) {
+    return JSX.jsxs('button',{type:'button',className:'fixture-diff text-size-chat',title:'Open fictional diff',onClick:()=>clicks++,children:[
+      showLeadingSeparator?'· ':null,JSX.jsx('span',{children:'13 files changed'}),
+      JSX.jsxs('span',{className:'fixture-counts text-size-chat-sm',children:[JSX.jsx('span',{style:{color:'#39c579'},children:'+271'}),JSX.jsx('span',{style:{color:'#ff4949'},children:'−0'})]})]});
+  }
+  function Pass({children}) {return children;}
+  const Motion={div:({initial,animate,exit,transition,...props})=>JSX.jsx('div',props)};
+  function NativePanel({state,conversationId}) {
+    return renderNativeFixed({conversationId,hostId:host,isTurnInProgress:state!=='completed',hasBlockingRequest:state==='blocked',
+      unifiedDiffItem:{unifiedDiff:'fixture'},conversationDetailLevel:'STEPS',todoListItem:{plan:state==='plan'?[{}]:[]}},
+      {React,jsx:JSX,DOM,anchor:(_,selector)=>selector?null:document.getElementById('native-panels'),
+       useSelector:()=>null,summarize:()=>({hasChanges:state!=='nodiff'}),Diff,Motion,Presence:Pass,
+       Todo:()=>JSX.jsx('span',{children:'Native plan stays above'}),Layout:Pass,fade:{},layout:{},delay:0});
+  }
+  function App({state}) {
+    const placementRef=React.useRef(document.getElementById('usage'));useNativeLayout(React,placementRef);
+    const now=Date.now()/1000, conversationId=state==='missing'?'unknown':thread;
+    return JSX.jsxs(JSX.Fragment,{children:[state==='fallback'?null:JSX.jsx(Bar,{hostId:host,conversationId,
+      entries:state==='missing'?[]:[{snapshot:{secondary:{windowDurationMins:10080,usedPercent:state==='zero'?0:state==='low'?90:state==='near-low'?89.99:state==='depleted'?100:state==='boundary'?80:state==='normal-boundary'?79.99:state==='accuracy'?9:17,
+        resetsAt:state==='expired'?now-1:state==='hourly'?now+13*3600:now+5*86400+9*3600}}}],
+      usage:state==='missing'?null:{modelContextWindow:1000,last:{totalTokens:state==='zero'?0:290}}}),
+      JSX.jsx(NativePanel,{state,conversationId})]});
+  }
+  function render(next='normal',font=14) {state=next;document.body.style.setProperty('--codex-chat-font-size',font+'px');root.render(JSX.jsx(App,{state}));}
+  window.fixture={render,goal:visible=>document.querySelector('.fixture-goal').style.display=visible?'block':'none',utility:visible=>document.querySelector('.fixture-utility').style.display=visible?'flex':'none',get clicks(){return clicks;}};render();
+</script></html>
