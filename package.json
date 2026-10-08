@@ -1,8 +1,12 @@
 {
-  "name": "codex-usage",
+  "name": "codex-usage-bar",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {"test": "node --test tests/*.test.mjs", "preview": "python3 scripts/preview.py"},
-  "description": "A reversible local desktop modification for Codex Usage"
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "preview": "python3 scripts/preview.py"
+  },
+  "description": "A reversible local desktop modification for Codex Usage Bar",
+  "license": "MIT"
 }

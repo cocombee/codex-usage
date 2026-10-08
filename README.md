@@ -1,58 +1,69 @@
-# Codex Usage
+# Codex Usage Bar
 
-A local Codex desktop modification that adds a fixed usage row immediately above the chat input.
+See your weekly quota, changed files, response speed and context usage just above the Codex chat input.
+
+Codex Usage Bar is a community desktop modification that uses Codex's existing account state, theme and chat-font settings. It adds one compact row while preserving the native composer, Goal controls and Files changed action.
 
 **Weekly → Files changed → Token speed → Context**
 
-The row uses Codex's chat-font setting and theme tokens. Its weekly progress track shrinks before text and stays visible; pills stay on one row. Actual content fit triggers compact stages before overflow. Each chip follows the native Files changed surface: elevated secondary background, theme border, rounded-3xl corners and native inner padding. The row has no extra outer container, background or padding. Usage sits above the native Goal/utility group with an 8 CSS px gap. Native controls retain their attachment, size and inset; Usage follows the Goal rail width, retaining its native inset when Goal is absent. Without native controls, the gap to the composer stays 8 CSS px. Weekly uses semantic theme colors: normal above 20% remaining, yellow above 10% through 20%, red at 10% or below. Files changed reuses the existing native control and diff action.
+[macOS setup](#macos) · [Windows preview](#windows-preview) · [Documentation](#documentation) · [Contributing](CONTRIBUTING.md)
 
-No reset icon. Five-hour usage is deferred to the [architecture plan](docs/Architecture%20Plan.md).
+## What it shows
 
-## Implementation
+| Metric | Behavior |
+| --- | --- |
+| **Weekly** | Account quota remaining and its reset countdown. The progress track shows the same remaining percentage. |
+| **Files changed** | The selected chat's native control, with its existing diff action. |
+| **Token speed** | An approximate, per-chat tokens-per-second estimate, marked `~`. |
+| **Context** | Context usage from the selected conversation's existing token-usage state. |
 
-- `src/bar.mjs`: presentation, existing font/color tokens, responsive layout.
-- `src/metrics.mjs`: account weekly window, current context percentage and product warning boundaries.
-- `src/speed.mjs`: in-memory token-count and streaming-time observer, isolated by host and chat.
-- `src/diff-slot.mjs`: selected chat's portal target and subscription lifecycle.
-- `src/native-fixed.mjs`: native Files changed composition; preserves native plans, extra portals and fallback.
-- `src/responsive.mjs`: three fitting stages, 70% spare-track allocation and restoration buffer.
-- `src/native-layout.mjs`: Goal-width alignment and native utility overflow reservation.
-- `scripts/setup.py`: one-command Terminal installation with compatibility checks, build timeout and recovery.
-- `scripts/mod.py`: exact-version patch, archive integrity validation, candidate packaging and reversible installation.
+Missing data appears as `—`, never a fabricated zero. The row adapts to narrow composer widths by shortening labels and spacing; it keeps one row and follows the host's theme and font. Five-hour usage is not implemented.
 
-Weekly displays quota remaining, matching Codex’s “% left” wording; the internal track fills the same remaining percentage. The core account bucket is used, so a model-specific bucket cannot silently replace the account quota. Token speed is marked `~` because Codex supplies desktop lifecycle events rather than provider API duration. The weighted calculation follows [Hermes](docs/Hermes%20Token%20Speed.md). No credentials or message contents are retained by the observer. Missing data shows `—`.
+## Compatibility
 
-This modification is version-pinned to desktop `26.930.61225`, using the inspected original archive hash. It is not a supported plugin extension point. A desktop update requires new inspection before patching. The exact original app is retained in `Safe Build`; the locally signed candidate occupies `New Build`. App binaries and extracted vendor code are excluded from publication. The builder dynamically synchronizes the enabled native archive digest before signing and rejects inconsistent candidates. After installation, New Build retains the previous verified mod for transactional recovery; Safe Build is never used as an automatic mod-removing fallback.
+**This is an experimental local modification, not an official OpenAI plugin.** Installers accept only the inspected versions below and reject unknown versions or changed source files.
 
-## Install (macOS)
+| Platform | Pinned application | Status |
+| --- | --- | --- |
+| Apple Silicon macOS | Desktop `26.930.61225` | Local installer with validation and recovery; full installed-app acceptance remains pending. |
+| Windows x64 | Store package `26.1002.7124.0`, renderer `26.1002.52244` | Experimental local preview; native rendering observed, full acceptance pending. |
 
-Requires Apple Silicon macOS, Python 3.9+, Node.js 20+, and the inspected Codex desktop **26.930.61225** at `/Applications/ChatGPT.app`. Keep the downloaded checkout on the same disk as `/Applications`. Windows uses the separate experimental installer below; the macOS platform guard must not be bypassed.
+A desktop update needs fresh compatibility review. Changing a version number or bypassing a hash check is not a supported upgrade path.
 
-From this repository, run in **macOS Terminal**, outside Codex:
+## Installation
+
+Clone the source, then follow the instructions for your platform:
 
 ```sh
+git clone https://github.com/cocombee/codex-usage-bar.git
+cd codex-usage-bar
+```
+
+### macOS
+
+Requires **Apple Silicon**, **Python 3.9+**, **Node.js 20+**, and the pinned desktop version at `/Applications/ChatGPT.app`. Keep this checkout on the same disk as `/Applications`, with space for the candidate and recovery copies.
+
+Run in **macOS Terminal, outside Codex**:
+
+```sh
+# Check compatibility without building or installing.
+python3 scripts/setup.py --check
+
+# Build, verify, install and launch once.
 python3 scripts/setup.py
 ```
 
-The command prints three steps: compatibility checks, build/signature verification, then installation and one normal launch. Codex stays open while the candidate is built. Installation automatically closes and reopens Codex; keep Terminal open until it finishes. Unsupported versions, altered app bundles, missing prerequisites and duplicate installers stop before replacement. Build and external-command timeouts prevent unlimited waits. No sudo, security-setting changes or account reset is performed.
+Keep Terminal open. Codex stays open during the build; installation closes and reopens it. The installer validates the source, signs the local candidate, preserves a verified recovery copy and stops on unsupported input.
 
-This release uses local ad-hoc signing. The updater preserves account data, Keychain and existing permission settings, and does not request sudo or reset permissions. macOS may still request authorization for the modified app; an update cannot promise to suppress operating-system prompts. A stable signing identity is a possible future improvement and requires its own migration and acceptance testing. See [Apple’s code identity explanation](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements).
+The modified app uses local ad-hoc signing. Account data and Keychain are preserved, but macOS may request authorization for the changed app. The installer does not use sudo or change system security settings.
 
-A valid original vendor-signed app is checked before first installation. Locally signed candidates remove restricted vendor claims, preserve Hardened Runtime/JIT capabilities and scope the framework-loading exception to verified executable hosts. Native archive integrity is synchronized before signing. If candidate startup fails, the complete previously verified app is restored and gets one recovery launch; the failed candidate is not repeatedly relaunched. Durable local receipts distinguish build verification, installation and process health from visual acceptance.
+After installation, check the rendered row and normally quit/reopen the installed app. Follow the [macOS installation guide](docs/Installation.md) to record acceptance or diagnose a failed install.
 
-Optional compatibility check, without building, quitting or installing:
+### Windows preview
 
-```sh
-python3 scripts/setup.py --check
-```
+Requires **x64 Windows**, **Python 3.10+**, the exact current-user Store package above and approximately **6 GB free space**.
 
-After installation, confirm the usage row renders, then normally quit and reopen the installed app once. Record these checks using the acceptance command printed by the installer. When updating before acceptance, the installer preserves and verifies the previous working app in a separate protected recovery slot before reusing the candidate slot. Process health alone does not prove rendering or live metric accuracy. See [installation details](docs/Installation.md) and [Startup And Signing Prevention](docs/Startup%20And%20Signing%20Prevention.md).
-
-## Windows
-
-An experimental x64 Windows port supports Store package **26.1002.7124.0**, whose renderer version is **26.1002.52244**. Python 3.10+ and that exact installed Store build are required. Unknown versions and changed source hashes are rejected.
-
-Run from this checkout in PowerShell:
+Run in PowerShell from this checkout:
 
 ```powershell
 python scripts/windows_setup.py --check
@@ -61,21 +72,51 @@ $build = (Get-Content -Raw .local-windows/latest.json | ConvertFrom-Json).build
 python scripts/windows_setup.py --install "$build"
 ```
 
-The separate copy installs under `%LOCALAPPDATA%\OpenAI\CodexUsage`, with a **Codex Usage (local mod)** Start menu shortcut. Quit the Store app normally, then open that shortcut. The launcher uses the usual profile and refuses to open while another ChatGPT desktop instance is running. Store files and registration are preserved. Build files are local only and excluded from Git.
+Quit all ChatGPT/Codex desktop windows normally, then open **Codex Usage (local mod)** from the Start menu. Keep the Python executable used for installation available.
 
-The changed launcher is unsigned and explicitly local; its stale vendor signature is removed. The native ASAR hash is updated and integrity fuses remain enabled. No certificate trust or Windows security policy is changed.
+The mod installs a separate copy under `%LOCALAPPDATA%\OpenAI\CodexUsage`; the Store app stays intact. Its launcher uses the usual profile and refuses concurrent desktop instances. The changed launcher is **unsigned**. Integrity validation remains enabled, and no certificate trust or Windows security policy is changed.
 
-Source signatures, candidate integrity, Windows recovery tests and browser layout tests passed on Windows 11. The native usage row rendered, Weekly matched the core account quota, and Goal creation worked in a chat owned by the mod. The row also supports local new-chat screens above Goal and the project/computer controls. **Live token speed, native diff interaction and full normal-launch acceptance remain pending.** This is a local preview, not a supported Windows release. See [Windows installation and acceptance](docs/Windows%20Port.md), including the Goal restriction when a development instance is following a chat owned by another window.
+Read the [Windows guide](docs/Windows%20Port.md) for recovery, acceptance and the host's chat-ownership requirement for setting Goals.
 
-## Verification
+## Validation and limitations
 
-Run `node --test tests/*.test.mjs` and the Python checks in `tests/*.test.py`. The atomic exchange test requires macOS. `tests/render.mjs` additionally uses Playwright, system Chrome and an isolated loopback fixture with host React and fictional values; it does not attach to the running app.
+Automated checks cover metric calculations, responsive layouts, native diff composition, archive integrity, signing policy and installer recovery. Fixture tests use fictional values in an isolated loopback page.
 
-Current checks cover 35 font/width layouts and 60 zoom/reference layouts, equal object/end spacing, the 70% spare-track allocation, restoration buffering, portal interaction, integrity tampering, signing policy, atomic recovery, concurrent-install rejection, build-timeout cleanup and fresh helper-crash detection. The local mod has reopened after installation. A clean vendor-app end-to-end install, rendered native UI, live metrics and normal user quit/reopen remain separate acceptance evidence; synthetic signing tests cannot establish those results.
+Native application checks are tracked separately:
 
-## Responsive layout
+- **macOS:** the latest installed candidate still needs rendered-UI and normal quit/reopen acceptance; a clean vendor-app end-to-end installation remains unverified.
+- **Windows:** the row rendered in chats and on new-chat screens, and Weekly matched the core account quota. Live token speed, actual diff interaction, full display-scaling checks and two normal shared-profile launches remain pending.
+- **Both platforms:** token speed is an estimate from desktop lifecycle events, not provider API timing. Passing tests or a healthy process does not establish every live-app behavior.
 
-At full width, 70% of spare width extends Weekly's progress track; the rest is evenly shared per object gap and end inset. Three responsive groups apply only the reductions needed: (1) track/spacing, then `left` and extra countdown units; (2) `token/s` → `tok/s` and `Context` → `Ctx` together with the Weekly label hidden, then the speed icon; (3) readable text caps. Once days are gone, hours appear alone in every layout; below one hour, minutes remain visible. Fuller wording restores with an 8 CSS px buffer. Pills never wrap; exceptionally narrow layouts scroll inside the usage row.
+This repository contains original source, tests and documentation. App binaries, extracted vendor assets, account profiles and local operational logs are not distributed.
 
+## Development
 
-The latest user-approved chat/composer-width thresholds are Stage 1 at 620 px, Stage 2 at 580 px and Stage 3 at 490 px, all logical CSS pixels. Native composer width determines these triggers, independently of whole-window width and the narrower Goal/Usage rail. Stage 1 removes `left` and extra countdown units; Stage 2 pairs compact token/context labels and hides Weekly; Stage 3 applies readable text caps. Content fitting still prevents wrapping, and restoration has an 8 px buffer. At every fit level, width left after natural content and minimum/standard spacing is split 70% to the track and 30% equally per object gap and horizontal end inset. The repository publishes original source, installer, tests and documentation; app binaries, extracted vendor assets and local operational data are excluded.
+The shared JavaScript tests require Node.js 20+ and no application installation:
+
+```sh
+node --test tests/diff-slot.test.mjs tests/metrics.test.mjs tests/speed.test.mjs
+```
+
+The [CI workflow](.github/workflows/ci.yml) runs shared and platform-specific synthetic tests on macOS and Windows with Node.js 22 and Python 3.11. Native installed-app acceptance is tracked separately.
+
+Installer tests use Python's standard library; platform-specific cases need their target OS. UI fixture tests additionally need a local verified candidate, Playwright and Chrome.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, test commands and what to include in a pull request.
+
+## Documentation
+
+| Guide | Purpose |
+| --- | --- |
+| [macOS installation](docs/Installation.md) | Requirements, installation, recovery and acceptance |
+| [Windows preview](docs/Windows%20Port.md) | Version pins, installation, launcher behavior and remaining validation |
+| [Architecture](docs/Architecture%20Plan.md) | Module ownership, state sources and responsive behavior |
+| [Desktop integration decision](docs/ADR%20002%20Desktop%20Mod.md) | Integration constraints and implementation choices |
+| [Startup and signing](docs/Startup%20And%20Signing%20Prevention.md) | Required integrity, signing and launch checks |
+| [Token-speed calculation](docs/Hermes%20Token%20Speed.md) | Timing method and its limitations |
+| [Contributing](CONTRIBUTING.md) | Development workflow and reporting bugs |
+| [Security](SECURITY.md) | Reporting vulnerabilities and handling sensitive diagnostics |
+
+## License
+
+The original code in this repository is available under the [MIT License](LICENSE). This license does not cover OpenAI's application, trademarks or other vendor materials. Those materials are not redistributed here.

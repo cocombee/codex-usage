@@ -6,7 +6,7 @@ import datetime
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import platform
 import shutil
 import subprocess
@@ -23,6 +23,43 @@ import windows_patch as patch
 LOCAL = ROOT / '.local-windows'
 POWERSHELL = str(Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe')
 CREATE_NO_WINDOW = 0x08000000 if os.name == 'nt' else 0
+SCRIPT_NAMES = ('windows_setup.py', 'windows_integrity.py', 'windows_patch.py', 'integrity.py', 'mod.py', 'signing.py')
+DISPATCHER = '''#!/usr/bin/env python3
+"""Select the installed launcher using the same committed pointer as the app."""
+import json
+from pathlib import Path, PureWindowsPath
+import runpy
+import sys
+
+try:
+    root = Path(__file__).resolve().parent
+    entry = json.loads((root / 'current.json').read_text(encoding='utf-8'))['current']
+    if not isinstance(entry, str) or PureWindowsPath(entry).name != entry or entry in ('.', '..'):
+        raise ValueError('Invalid build pointer')
+    scripts = root / 'builds' / entry / 'scripts'
+    if not scripts.exists():
+        # Older previews kept their complete launcher here. Never overwrite it.
+        scripts = root / 'scripts'
+    script = (scripts / 'windows_setup.py').resolve(strict=True)
+    if not script.is_relative_to(root):
+        raise ValueError('Launcher escaped the managed installation directory')
+    sys.path.insert(0, str(script.parent))
+    runpy.run_path(str(script), run_name='__main__')
+except (Exception, KeyboardInterrupt) as error:
+    print('Stopped: ' + (str(error) or 'Interrupted; no Store files were modified.'), file=sys.stderr)
+    raise SystemExit(1)
+'''
+
+
+def atomic_file(path, data):
+    path = Path(path)
+    temporary = path.with_name(path.name + '.pending-' + uuid.uuid4().hex)
+    try:
+        with temporary.open('xb') as stream:
+            stream.write(data); stream.flush(); os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def powershell(script, *arguments, timeout=120):
@@ -232,7 +269,7 @@ def validate_install_root(root):
 
 
 def current_build(root, entry):
-    require(isinstance(entry, str) and Path(entry).name == entry and entry not in ('.', '..'), 'Invalid build pointer')
+    require(isinstance(entry, str) and PureWindowsPath(entry).name == entry and entry not in ('.', '..'), 'Invalid build pointer')
     reject_reparse(root / 'builds')
     reject_reparse(root / 'builds' / entry)
     path = inside(root / 'builds' / entry, root / 'builds')
@@ -258,24 +295,35 @@ def install(build_path):
         # An interrupted copy is never referenced by current.json.
         shutil.copytree(build_path, target)
         verify_build(target)
-        scripts = root / 'scripts'; scripts.mkdir(exist_ok=True)
-        for name in ['windows_setup.py', 'windows_integrity.py', 'windows_patch.py', 'integrity.py', 'mod.py', 'signing.py']:
+        # Launcher dependencies belong to this build. An interrupted upgrade
+        # must not truncate or mix modules used by the previous installation.
+        scripts = target / 'scripts'; scripts.mkdir()
+        expected_scripts = {name: sha(ROOT / 'scripts' / name) for name in SCRIPT_NAMES}
+        for name in SCRIPT_NAMES:
             shutil.copy2(ROOT / 'scripts' / name, scripts / name)
+        require(inventory(scripts) == expected_scripts, 'Installed launcher scripts differ from their source')
+        launcher = root / 'windows_setup.py'
+        atomic_file(launcher, DISPATCHER.encode('utf-8'))
         shortcut = powershell('''
 $folder = Join-Path ([Environment]::GetFolderPath('Programs')) 'Codex Usage'
 New-Item -ItemType Directory -Path $folder -Force | Out-Null
 $path = Join-Path $folder 'Codex Usage (local mod).lnk'
-$link = (New-Object -ComObject WScript.Shell).CreateShortcut($path)
+$temporary = Join-Path $folder ('Codex Usage (local mod).pending-' + [guid]::NewGuid().ToString('N') + '.lnk')
+$link = (New-Object -ComObject WScript.Shell).CreateShortcut($temporary)
 $link.TargetPath = $args[0]
 $link.Arguments = $args[1]
 $link.WorkingDirectory = $args[2]
 $link.Description = 'Locally modified Codex Usage; close the Store app before opening.'
 $link.Save()
-$path | ConvertTo-Json -Compress
-''', sys.executable, subprocess.list2cmdline(['-B', str(scripts / 'windows_setup.py'), '--launch']), root)
+[pscustomobject]@{Path=$path;Temporary=$temporary} | ConvertTo-Json -Compress
+''', sys.executable, subprocess.list2cmdline(['-B', str(launcher), '--launch']), root)
+        try:
+            os.replace(shortcut['Temporary'], shortcut['Path'])
+        finally:
+            Path(shortcut['Temporary']).unlink(missing_ok=True)
         atomic_json(pointer_path, {'current': target.name, 'previous': old['current'] if old else None,
                                    'installed_at': now(), 'state': 'installed-awaiting-launch'})
-        return {'installation': str(root), 'shortcut': shortcut, 'build': target.name}
+        return {'installation': str(root), 'shortcut': shortcut['Path'], 'build': target.name}
 
 
 def app_processes():

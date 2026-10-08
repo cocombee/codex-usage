@@ -1,4 +1,4 @@
-# Windows Port
+# Windows Preview
 
 ## Status and installation
 
@@ -26,7 +26,7 @@ When multiple desktop instances are open during development, a chat may be a fol
 For launcher diagnostics:
 
 ```powershell
-python "$env:LOCALAPPDATA\OpenAI\CodexUsage\scripts\windows_setup.py" --launch
+python "$env:LOCALAPPDATA\OpenAI\CodexUsage\windows_setup.py" --launch
 ```
 
 ## Implementation and packaging
@@ -43,14 +43,14 @@ References: [official Windows deployment](https://learn.chatgpt.com/docs/enterpr
 
 ## Recovery
 
-Unique build directories retain prior copies. Installation switches `current.json` only after fully verifying the new copy. An OS byte-range lock rejects overlapping operations and releases on process death. An interrupted copy is never selected for launch. There is no recursive removal of existing installations.
+Unique build directories retain prior copies and each build's matching installer scripts. The installed `windows_setup.py` is a stable dispatcher that selects the scripts for the verified current build. Installation switches `current.json` only after fully verifying the new copy. An OS byte-range lock rejects overlapping operations and releases on process death. An interrupted copy is never selected for launch. There is no recursive removal of existing installations.
 
 If a candidate exits during startup, the previous build is verified and selected when available. The failed candidate is not repeatedly relaunched. A failed first launch is marked failed; the original Store app remains available. If startup verification is interrupted while the process is alive, the receipt records `needs-attention`; no files are replaced underneath it.
 
 To select the previous mod after quitting normally:
 
 ```powershell
-python "$env:LOCALAPPDATA\OpenAI\CodexUsage\scripts\windows_setup.py" --rollback
+python "$env:LOCALAPPDATA\OpenAI\CodexUsage\windows_setup.py" --rollback
 ```
 
 After interruption, inspect `%LOCALAPPDATA%\OpenAI\CodexUsage\current.json`. With no desktop instance running, rerun `--launch` or select `--rollback`. Never delete profile data as recovery. Updated Store builds require fresh inspection and new pins.
@@ -92,7 +92,7 @@ Recorded on Windows 11 build 26200:
 Only after those observations, explicitly record acceptance:
 
 ```powershell
-python "$env:LOCALAPPDATA\OpenAI\CodexUsage\scripts\windows_setup.py" --accept --confirm-rendered-ui --confirm-live-metrics --confirm-diff-interaction --confirm-quit-reopen
+python "$env:LOCALAPPDATA\OpenAI\CodexUsage\windows_setup.py" --accept --confirm-rendered-ui --confirm-live-metrics --confirm-diff-interaction --confirm-quit-reopen
 ```
 
 Acceptance never launches the app, checks that the exact installed build is running, and verifies its files. Keep native acceptance pending in contributions until the observations have actually been made.

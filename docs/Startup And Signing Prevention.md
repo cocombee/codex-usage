@@ -2,7 +2,7 @@
 
 Recorded 8 October 2026, Asia/Kuala_Lumpur, from the user's confirmed prevention handoff.
 
-This is documentation for future Codex Usage builds. It does not authorize a repair agent, installer, app modification, installation, launch, or restart now. The background repair agent was stopped at the user's request. Bars and UI are outside this note's scope.
+This is documentation for future Codex Usage Bar builds. It does not authorize a repair agent, installer, app modification, installation, launch, or restart now. The background repair agent was stopped at the user's request. Bars and UI are outside this note's scope.
 
 ## Confirmed failures
 

@@ -1,4 +1,4 @@
-> Historical integration options. The accepted desktop mod and current delivery are described in [ADR 002](ADR%20002%20Desktop%20Mod.md) and [Codex Usage Handoff](Codex%20Usage%20Handoff.md).
+> Historical integration options. The accepted desktop mod and current delivery are described in [ADR 002](ADR%20002%20Desktop%20Mod.md) and [Codex Usage Bar Handoff](Codex%20Usage%20Handoff.md).
 
 # ADR 001 — Desktop Integration
 
@@ -7,7 +7,7 @@ Date: 7 October 2026.
 
 ## Context
 
-Codex Usage should initially display weekly quota, token speed, and Context usage in that order with the supplied reference styling. 5-hour usage stays in the future plan only; if added later, it belongs after weekly and before token speed. Its intended location is inside the Codex desktop app above the message box. Responsive behavior and a public GitHub repository are required. The preferred responsive sequence shrinks progress tracks first, then spacing and text, preserving one row until readable fitting is impossible.
+Codex Usage Bar should initially display weekly quota, token speed, and Context usage in that order with the supplied reference styling. 5-hour usage stays in the future plan only; if added later, it belongs after weekly and before token speed. Its intended location is inside the Codex desktop app above the message box. Responsive behavior and a public GitHub repository are required. The preferred responsive sequence shrinks progress tracks first, then spacing and text, preserving one row until readable fitting is impossible.
 
 The public app-server provides usage APIs, but API availability does not establish access to the active desktop session or a composer UI extension point.
 

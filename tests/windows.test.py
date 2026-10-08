@@ -1,6 +1,7 @@
 """Synthetic PE fixtures plus Windows locking/deployment failure tests."""
 import json
 import os
+from contextlib import ExitStack, contextmanager, nullcontext
 from pathlib import Path
 import struct
 import subprocess
@@ -85,6 +86,129 @@ class IntegrityTests(unittest.TestCase):
 
 
 class DeploymentTests(unittest.TestCase):
+    @contextmanager
+    def installer_fixture(self, legacy=False):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as mocks:
+            base = Path(directory).resolve()
+            root, checkout = base / 'install', base / 'checkout'
+            local = checkout / '.local-windows'
+            build = local / 'builds' / 'new'
+            (build / 'app').mkdir(parents=True)
+            (root / 'builds' / 'old').mkdir(parents=True)
+            scripts = root / 'scripts' if legacy else root / 'builds' / 'old' / 'scripts'
+            scripts.mkdir()
+            (scripts / 'windows_setup.py').write_text('print("old")\n')
+            (checkout / 'scripts').mkdir(parents=True)
+            for name in setup.SCRIPT_NAMES:
+                (checkout / 'scripts' / name).write_text('print("new")\n')
+            pointer = {'current': 'old', 'previous': None}
+            setup.atomic_json(root / 'current.json', pointer)
+            launcher = root / 'windows_setup.py'
+            if not legacy:
+                launcher.write_text(setup.DISPATCHER)
+            shortcut = base / 'mod.lnk'; shortcut.write_text('old shortcut')
+
+            def stage_shortcut(*args):
+                temporary = base / 'mod.pending.lnk'
+                temporary.write_text('new shortcut')
+                return {'Path': str(shortcut), 'Temporary': str(temporary)}
+
+            for name, value in [('ROOT', checkout), ('LOCAL', local)]:
+                mocks.enter_context(patch.object(setup, name, value))
+            mocks.enter_context(patch.object(setup, 'platform_guard'))
+            mocks.enter_context(patch.object(setup, 'default_install_root', return_value=root))
+            mocks.enter_context(patch.object(setup, 'exclusive', side_effect=lambda _: nullcontext()))
+            mocks.enter_context(patch.object(setup, 'verify_build', return_value={'files': {}}))
+            mocks.enter_context(patch.object(setup, 'powershell', side_effect=stage_shortcut))
+            yield root, build, scripts, shortcut, pointer
+
+    def selected_launcher_output(self, root):
+        # Fixture launchers only print their identity; no desktop app is run.
+        launcher = root / 'windows_setup.py'
+        if not launcher.exists():
+            launcher = root / 'scripts/windows_setup.py'
+        return subprocess.check_output([sys.executable, '-B', str(launcher)], text=True).strip()
+
+    def test_interrupted_launcher_copy_preserves_previous_modules_and_dispatch(self):
+        original_copy = setup.shutil.copy2
+        for legacy in (False, True):
+            with self.subTest(legacy=legacy), self.installer_fixture(legacy) as (root, build, scripts, shortcut, pointer):
+                original = (scripts / 'windows_setup.py').read_bytes()
+
+                def interrupted_copy(source, destination):
+                    if Path(source).name == 'windows_integrity.py':
+                        Path(destination).write_text('def truncated(')
+                        raise OSError('interrupted launcher copy')
+                    return original_copy(source, destination)
+
+                with patch.object(setup.shutil, 'copy2', side_effect=interrupted_copy):
+                    with self.assertRaisesRegex(OSError, 'interrupted launcher copy'):
+                        setup.install(build)
+                self.assertEqual(setup.read_json(root / 'current.json'), pointer)
+                self.assertEqual((scripts / 'windows_setup.py').read_bytes(), original)
+                self.assertEqual(shortcut.read_text(), 'old shortcut')
+                self.assertEqual(self.selected_launcher_output(root), 'old')
+
+    def test_failed_dispatcher_replacement_preserves_old_launcher(self):
+        original_replace = setup.os.replace
+        with self.installer_fixture() as (root, build, scripts, shortcut, pointer):
+            original = (root / 'windows_setup.py').read_bytes()
+
+            def fail_dispatcher(source, destination):
+                if Path(destination) == root / 'windows_setup.py':
+                    raise OSError('dispatcher replacement denied')
+                return original_replace(source, destination)
+
+            with patch.object(setup.os, 'replace', side_effect=fail_dispatcher):
+                with self.assertRaisesRegex(OSError, 'dispatcher replacement denied'):
+                    setup.install(build)
+            self.assertEqual((root / 'windows_setup.py').read_bytes(), original)
+            self.assertEqual(setup.read_json(root / 'current.json'), pointer)
+            self.assertEqual(self.selected_launcher_output(root), 'old')
+            self.assertFalse(list(root.glob('windows_setup.py.pending-*')))
+
+    def test_failed_shortcut_replacement_keeps_previous_launcher_and_pointer(self):
+        original_replace = setup.os.replace
+        with self.installer_fixture(legacy=True) as (root, build, scripts, shortcut, pointer):
+            def fail_shortcut(source, destination):
+                if Path(destination) == shortcut:
+                    raise OSError('shortcut replacement denied')
+                return original_replace(source, destination)
+
+            with patch.object(setup.os, 'replace', side_effect=fail_shortcut):
+                with self.assertRaisesRegex(OSError, 'shortcut replacement denied'):
+                    setup.install(build)
+            self.assertEqual(shortcut.read_text(), 'old shortcut')
+            self.assertEqual(setup.read_json(root / 'current.json'), pointer)
+            self.assertEqual(self.selected_launcher_output(root), 'old')
+
+    def test_committed_install_and_rollback_select_matching_launcher_modules(self):
+        for legacy in (False, True):
+            with self.subTest(legacy=legacy), self.installer_fixture(legacy) as (root, build, scripts, shortcut, pointer):
+                setup.install(build)
+                selected = setup.read_json(root / 'current.json')
+                self.assertEqual((selected['current'], selected['previous']), ('new', 'old'))
+                self.assertEqual(self.selected_launcher_output(root), 'new')
+                self.assertEqual(setup.inventory(root / 'builds/new/scripts'), setup.inventory(setup.ROOT / 'scripts'))
+                setup.select_previous(root, selected, 'test rollback')
+                self.assertEqual(self.selected_launcher_output(root), 'old')
+
+    def test_failed_pointer_commit_keeps_new_shortcut_on_previous_launcher(self):
+        original_replace = setup.os.replace
+        for legacy in (False, True):
+            with self.subTest(legacy=legacy), self.installer_fixture(legacy) as (root, build, scripts, shortcut, pointer):
+                def fail_pointer(source, destination):
+                    if Path(destination) == root / 'current.json':
+                        raise OSError('pointer commit interrupted')
+                    return original_replace(source, destination)
+
+                with patch.object(setup.os, 'replace', side_effect=fail_pointer):
+                    with self.assertRaisesRegex(OSError, 'pointer commit interrupted'):
+                        setup.install(build)
+                self.assertEqual(shortcut.read_text(), 'new shortcut')
+                self.assertEqual(setup.read_json(root / 'current.json'), pointer)
+                self.assertEqual(self.selected_launcher_output(root), 'old')
+
     def test_unsupported_package_stops_before_source_file_access(self):
         with patch.object(setup, 'platform_guard'), patch.object(setup, 'powershell', return_value={'Version': '99.1.0', 'Architecture': 'x64'}), patch.object(setup, 'sha') as hashing:
             with self.assertRaisesRegex(ValueError, 'Uninspected'): setup.discover()
@@ -107,7 +231,7 @@ class DeploymentTests(unittest.TestCase):
             original = {'current': 'old', 'previous': None}
             setup.atomic_json(root / 'current.json', original)
             from contextlib import nullcontext
-            with patch.object(setup, 'platform_guard'), patch.object(setup, 'inside', side_effect=lambda path, root: Path(path).resolve()), patch.object(setup, 'verify_build', return_value={'files': {}}), patch.object(setup, 'validate_install_root', return_value=root), patch.object(setup, 'exclusive', return_value=nullcontext()), patch.object(setup.shutil, 'copytree', side_effect=OSError('interrupted copy')):
+            with patch.object(setup, 'platform_guard'), patch.object(setup, 'inside', side_effect=lambda path, root: Path(path).resolve()), patch.object(setup, 'verify_build', return_value={'files': {}}), patch.object(setup, 'default_install_root', return_value=root), patch.object(setup, 'validate_install_root', return_value=root), patch.object(setup, 'exclusive', return_value=nullcontext()), patch.object(setup.shutil, 'copytree', side_effect=OSError('interrupted copy')):
                 with self.assertRaisesRegex(OSError, 'interrupted copy'): setup.install(build)
             self.assertEqual(setup.read_json(root / 'current.json'), original)
 
@@ -135,7 +259,7 @@ class DeploymentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             setup.atomic_json(root / 'current.json', {'current': 'new', 'previous': None})
-            with patch.object(setup, 'platform_guard'), patch.object(setup, 'validate_install_root', return_value=root), patch.object(setup, 'verify_build'), patch.object(setup, 'app_processes', return_value=[]), patch.object(setup, 'exclusive', return_value=nullcontext()), patch.object(setup.subprocess, 'Popen', side_effect=OSError('launch denied')) as launch:
+            with patch.object(setup, 'platform_guard'), patch.object(setup, 'default_install_root', return_value=root), patch.object(setup, 'validate_install_root', return_value=root), patch.object(setup, 'verify_build'), patch.object(setup, 'app_processes', return_value=[]), patch.object(setup, 'exclusive', return_value=nullcontext()), patch.object(setup.subprocess, 'Popen', side_effect=OSError('launch denied')) as launch:
                 with self.assertRaisesRegex(OSError, 'launch denied'): setup.launch()
                 launch.assert_called_once()
             self.assertEqual(setup.read_json(root / 'current.json')['state'], 'launch-failed')
@@ -147,7 +271,7 @@ class DeploymentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             setup.atomic_json(root / 'current.json', {'current': 'new', 'previous': 'old'})
-            with patch.object(setup, 'platform_guard'), patch.object(setup, 'validate_install_root', return_value=root), patch.object(setup, 'verify_build'), patch.object(setup, 'app_processes', return_value=[]), patch.object(setup, 'exclusive', return_value=nullcontext()), patch.object(setup.subprocess, 'Popen', return_value=process), patch.object(setup.time, 'monotonic', side_effect=KeyboardInterrupt):
+            with patch.object(setup, 'platform_guard'), patch.object(setup, 'default_install_root', return_value=root), patch.object(setup, 'validate_install_root', return_value=root), patch.object(setup, 'verify_build'), patch.object(setup, 'app_processes', return_value=[]), patch.object(setup, 'exclusive', return_value=nullcontext()), patch.object(setup.subprocess, 'Popen', return_value=process), patch.object(setup.time, 'monotonic', side_effect=KeyboardInterrupt):
                 with self.assertRaises(KeyboardInterrupt): setup.launch()
             pointer = setup.read_json(root / 'current.json')
             self.assertEqual((pointer['current'], pointer['state']), ('new', 'needs-attention'))
