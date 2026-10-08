@@ -74,7 +74,7 @@ export function createBar(React, jsx) {
             h('span', {className:'cu-wide'}, resetText(weekly?.resetsAt, now)),
             h('span', {className:'cu-compact'}, resetText(weekly?.resetsAt, now, true)))),
         h('div', {className:'cu-pill cu-changes', ref:diffRef}),
-        h('div', {className:'cu-pill cu-speed', title: speed == null ? 'Token speed unavailable until an observed model response supplies token counts and elapsed timing' : 'Estimated throughput over up to 10 model responses: output tokens / elapsed model-wait seconds, including time before the first token and excluding observed tool execution. Codex does not expose provider API latency.'},
+        h('div', {className:'cu-pill cu-speed', title: speed == null ? 'No active measured response. Speed appears during a running turn after fresh token counts and elapsed timing are available; idle chats show —.' : 'Estimated throughput over up to 10 model responses: output tokens / elapsed model-wait seconds, including time before the first token and excluding observed tool execution. Codex does not expose provider API latency.'},
           h('span', {className:'cu-bolt', 'aria-hidden':true}, '⚡'),
           h('span', {className:'cu-value'}, speed == null ? '—' : `~${speed}`),
           h('span', {className:'cu-unit'}, h('span', {className:'cu-wide'}, 'token/s'), h('span', {className:'cu-compact'}, 'tok/s'))),

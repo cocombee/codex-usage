@@ -84,7 +84,7 @@ Recorded on Windows 11 build 26200:
 ## Native acceptance still required
 
 1. Compare the Weekly countdown with the native usage panel; the remaining percentage and core bucket have been checked.
-2. Compare Context with the current chat and check token speed during a real response, across chats and hosts.
+2. Compare Context with the current chat and check token speed during a real response, across chats and hosts. Confirm speed clears to `—` on completion, interruption or idle status, and that a new turn waits for a fresh sample. Windows uses the same lifecycle observer as macOS.
 3. Open the actual Files changed diff; check plans, Goal and other native controls.
 4. Check narrow widths, font changes and Windows display scaling.
 5. Normally quit and reopen the exact installed **Codex Usage (local mod)**. Confirm account and row behavior. Two normal healthy launches must be recorded.
